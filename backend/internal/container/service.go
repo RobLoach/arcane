@@ -983,6 +983,9 @@ func applyEditToContainerConfigInternal(cfg *container.Config, previousBindings 
 	if req.User != nil {
 		cfg.User = *req.User
 	}
+	if req.Hostname != nil {
+		cfg.Hostname = strings.TrimSpace(*req.Hostname)
+	}
 	if req.Command != nil {
 		cfg.Cmd = append([]string{}, *req.Command...)
 	}

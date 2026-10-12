@@ -90,6 +90,7 @@
 			bind:rows
 			cancelHref={environmentHref(`/containers/${data.containerId}`, data.envId)}
 			environmentId={data.envId}
+			hostnamePlaceholder={data.editConfig.id.slice(0, 12)}
 			submitting={editContainerMutation.isPending}
 			onSubmit={handleSubmit}
 		/>

@@ -318,6 +318,20 @@
 					</div>
 				</div>
 			{/if}
+
+			{#if container.config?.hostname}
+				<Card.Root variant="outlined" size="sm" class="mt-4">
+					<Card.Content class="flex flex-col">
+						<div class="mb-2 text-xs font-semibold text-muted-foreground">{m.hostname()}</div>
+						<div
+							class="cursor-pointer font-mono text-sm font-medium break-all text-foreground select-all"
+							title={m.common_click_to_select()}
+						>
+							{container.config.hostname}
+						</div>
+					</Card.Content>
+				</Card.Root>
+			{/if}
 		</Card.Content>
 	</Card.Root>
 </div>

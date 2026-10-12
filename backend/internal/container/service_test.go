@@ -518,6 +518,21 @@ func TestApplyEditRecomputesExposedPortsInternal(t *testing.T) {
 	require.Contains(t, hc.PortBindings, network.MustParsePort("443/tcp"))
 }
 
+func TestApplyEditHostnameInternal(t *testing.T) {
+	cfg := container.Config{Hostname: "old-host"}
+
+	// nil preserves the existing hostname
+	require.NoError(t, applyEditToContainerConfigInternal(&cfg, nil, containertypes.Edit{}))
+	require.Equal(t, "old-host", cfg.Hostname)
+
+	require.NoError(t, applyEditToContainerConfigInternal(&cfg, nil, containertypes.Edit{Hostname: new(" new-host ")}))
+	require.Equal(t, "new-host", cfg.Hostname)
+
+	// empty clears it so Docker assigns its default on recreate
+	require.NoError(t, applyEditToContainerConfigInternal(&cfg, nil, containertypes.Edit{Hostname: new("")}))
+	require.Empty(t, cfg.Hostname)
+}
+
 func TestBuildEditNetworkingConfigInternal(t *testing.T) {
 	containerInspect := container.InspectResponse{
 		HostConfig: &container.HostConfig{NetworkMode: "my-net"},
