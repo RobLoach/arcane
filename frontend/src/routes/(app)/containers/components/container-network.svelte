@@ -16,6 +16,7 @@
 	import type { ContainerDetailsDto } from '#lib/types/docker.js';
 	import { handleApiResultWithCallbacks } from '#lib/utils/api.js';
 	import { hasPermission } from '#lib/utils/auth.js';
+	import { getCustomHostname } from '#lib/utils/docker.js';
 	import { tryCatch } from '#lib/utils/try-catch.js';
 
 	interface Props {
@@ -27,6 +28,7 @@
 
 	const queryClient = useQueryClient();
 	const envId = $derived(environmentId);
+	const customHostname = $derived(getCustomHostname(container));
 	const canConnect = $derived(hasPermission('networks:connect', envId));
 	const canDisconnect = $derived(hasPermission('networks:disconnect', envId));
 
@@ -327,7 +329,7 @@
 				</div>
 			{/if}
 
-			{#if container.config?.hostname}
+			{#if customHostname}
 				<Card.Root variant="outlined" size="sm" class="mt-4">
 					<Card.Content class="flex flex-col">
 						<div class="mb-2 text-xs font-semibold text-muted-foreground">{m.hostname()}</div>
@@ -335,7 +337,7 @@
 							class="cursor-pointer font-mono text-sm font-medium break-all text-foreground select-all"
 							title={m.common_click_to_select()}
 						>
-							{container.config.hostname}
+							{customHostname}
 						</div>
 					</Card.Content>
 				</Card.Root>
