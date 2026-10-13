@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { refreshAll } from '$app/navigation';
-	import { createQuery } from '@tanstack/svelte-query';
+	import { createQuery, useQueryClient } from '@tanstack/svelte-query';
 	import { toast } from 'svelte-sonner';
 
 	import { ArcaneButton } from '#lib/components/arcane-button/index.js';
@@ -25,6 +25,7 @@
 
 	let { container, environmentId }: Props = $props();
 
+	const queryClient = useQueryClient();
 	const envId = $derived(environmentId);
 	const canConnect = $derived(hasPermission('networks:connect', envId));
 	const canDisconnect = $derived(hasPermission('networks:disconnect', envId));
@@ -50,6 +51,13 @@
 			.map((name) => ({ value: name, label: name }))
 	);
 
+	// The loader reads the container through the query cache, so a refresh within its stale window would
+	// reuse the detail fetched just before the change and leave the network list on screen out of date.
+	async function refreshContainer(targetEnvId: string, targetContainerId: string) {
+		await queryClient.invalidateQueries({ queryKey: queryKeys.containers.detail(targetEnvId, targetContainerId) });
+		await refreshAll();
+	}
+
 	async function handleConnect() {
 		if (!connectNetwork) return;
 		connectPending = true;
@@ -73,7 +81,7 @@
 					connectNetwork = '';
 					connectAliases = '';
 					connectIp = '';
-					await refreshAll();
+					await refreshContainer(envId, container.id);
 				})()
 			);
 			await handleApiResultWithCallbacks({ result: operationResult, message: m.network_connect_failed() });
@@ -102,7 +110,7 @@
 									target.environmentId
 								);
 								toast.success(m.network_disconnect_success());
-								await refreshAll();
+								await refreshContainer(target.environmentId, target.containerId);
 							})()
 						);
 						await handleApiResultWithCallbacks({ result: operationResult, message: m.network_disconnect_failed() });
