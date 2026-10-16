@@ -67,19 +67,18 @@ require (
 	go.getarcane.app/acfs v0.6.2
 	go.getarcane.app/builds v0.4.4
 	go.getarcane.app/docker v0.1.0
-	go.getarcane.app/docker/compat v0.1.2
+	go.getarcane.app/docker/compat v0.1.3
 	go.getarcane.app/docker/convert v0.3.4
-	go.getarcane.app/kit v0.4.0
+	go.getarcane.app/kit v0.4.1
 	go.getarcane.app/streams v0.4.5
 	go.getarcane.app/sys/cgroup v0.2.4
 	go.getarcane.app/sys/crypto v0.3.0
-	go.getarcane.app/updater v0.11.6
+	go.getarcane.app/updater v0.11.7
 	go.opentelemetry.io/contrib/bridges/otelslog v0.21.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.72.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.72.0
 	go.opentelemetry.io/otel v1.47.0
-	go.opentelemetry.io/otel/log v1.47.0
 	go.opentelemetry.io/otel/metric v1.47.0
 	go.opentelemetry.io/otel/sdk v1.47.0
 	go.opentelemetry.io/otel/sdk/log v1.47.0
@@ -314,6 +313,7 @@ require (
 	go.opentelemetry.io/otel/exporters/stdout/stdoutlog v0.23.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdoutmetric v1.47.0 // indirect
 	go.opentelemetry.io/otel/exporters/stdout/stdouttrace v1.47.0 // indirect
+	go.opentelemetry.io/otel/log v1.47.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.11.1 // indirect
 	go.uber.org/dig v1.19.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect

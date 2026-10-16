@@ -44,7 +44,42 @@ func RegisterProjects(api huma.API, projectService *ProjectService, activityServ
 		activityService: activityService,
 		appCtx:          appCtx.Context(),
 	}
-	registerProjectWorkspaceRoutesInternal(api, h)
+	middleware.RegisterWithPermission(api, huma.Operation{
+		OperationID: "get-project-workspace",
+		Method:      http.MethodGet,
+		Path:        "/environments/{id}/projects/{projectId}/workspace",
+		Summary:     "Get project workspace",
+		Tags:        []string{"Project Workspace"},
+		Security:    handlerutil.DefaultOperationSecurity(),
+	}, authz.PermProjectsRead, h.GetProjectWorkspace)
+
+	middleware.RegisterWithPermission(api, huma.Operation{
+		OperationID: "get-project-workspace-file",
+		Method:      http.MethodGet,
+		Path:        "/environments/{id}/projects/{projectId}/workspace/file",
+		Summary:     "Get project workspace file",
+		Tags:        []string{"Project Workspace"},
+		Security:    handlerutil.DefaultOperationSecurity(),
+	}, authz.PermProjectsRead, h.GetProjectWorkspaceFile)
+
+	middleware.RegisterWithPermission(api, huma.Operation{
+		OperationID: "download-project-workspace-file",
+		Method:      http.MethodGet,
+		Path:        "/environments/{id}/projects/{projectId}/workspace/file/download",
+		Summary:     "Download project workspace file",
+		Tags:        []string{"Project Workspace"},
+		Security:    handlerutil.DefaultOperationSecurity(),
+	}, authz.PermProjectsRead, h.DownloadProjectWorkspaceFile)
+
+	middleware.RegisterWithPermission(api, huma.Operation{
+		OperationID: "update-project-workspace",
+		Method:      http.MethodPut,
+		Path:        "/environments/{id}/projects/{projectId}/workspace",
+		Summary:     "Update project workspace",
+		Tags:        []string{"Project Workspace"},
+		Security:    handlerutil.DefaultOperationSecurity(),
+		RequestBody: handlerutil.WorkspaceMultipartRequestBody("JSON encoded project workspace manifest"),
+	}, authz.PermProjectsUpdate, h.UpdateProjectWorkspace)
 
 	middleware.RegisterWithPermission(api, huma.Operation{
 		OperationID: "list-projects",
@@ -54,6 +89,7 @@ func RegisterProjects(api huma.API, projectService *ProjectService, activityServ
 		Description: "Get a paginated list of Docker Compose projects",
 		Tags:        []string{"Projects"},
 		Security:    handlerutil.DefaultOperationSecurity(),
+		Metadata:    map[string]any{authz.MetaEnvironmentAggregate: true},
 	}, authz.PermProjectsList, h.ListProjects)
 
 	middleware.RegisterWithPermission(api, huma.Operation{
@@ -64,6 +100,7 @@ func RegisterProjects(api huma.API, projectService *ProjectService, activityServ
 		Description: "Get counts of running, stopped, and total projects",
 		Tags:        []string{"Projects"},
 		Security:    handlerutil.DefaultOperationSecurity(),
+		Metadata:    map[string]any{authz.MetaEnvironmentAggregate: true},
 	}, authz.PermProjectsList, h.GetProjectStatusCounts)
 
 	middleware.RegisterWithPermission(api, huma.Operation{
@@ -74,6 +111,7 @@ func RegisterProjects(api huma.API, projectService *ProjectService, activityServ
 		Description: "Get sorted, distinct project tag names",
 		Tags:        []string{"Projects"},
 		Security:    handlerutil.DefaultOperationSecurity(),
+		Metadata:    map[string]any{authz.MetaEnvironmentAggregate: true},
 	}, authz.PermProjectsList, h.ListProjectTags)
 
 	middleware.RegisterWithPermission(api, huma.Operation{
@@ -270,39 +308,4 @@ func RegisterProjects(api huma.API, projectService *ProjectService, activityServ
 		Tags:        []string{"Projects"},
 		Security:    handlerutil.DefaultOperationSecurity(),
 	}, authz.PermProjectsDeploy, h.BuildProjectImages)
-}
-
-func registerProjectWorkspaceRoutesInternal(api huma.API, h *ProjectHandler) {
-	basePath := "/environments/{id}/projects/{projectId}/workspace"
-	tag := "Project Workspace"
-	handlerutil.RegisterSecured(api, handlerutil.Operation("get-project-workspace", http.MethodGet, basePath, "Get project workspace", "", tag), authz.PermProjectsRead, h.GetProjectWorkspace)
-	handlerutil.RegisterSecured(
-		api,
-		handlerutil.Operation(
-			"get-project-workspace-file",
-			http.MethodGet,
-			basePath+"/file",
-			"Get project workspace file",
-			"",
-			tag,
-		),
-		authz.PermProjectsRead,
-		h.GetProjectWorkspaceFile,
-	)
-	handlerutil.RegisterSecured(
-		api,
-		handlerutil.Operation(
-			"download-project-workspace-file",
-			http.MethodGet,
-			basePath+"/file/download",
-			"Download project workspace file",
-			"",
-			tag,
-		),
-		authz.PermProjectsRead,
-		h.DownloadProjectWorkspaceFile,
-	)
-	updateOperation := handlerutil.Operation("update-project-workspace", http.MethodPut, basePath, "Update project workspace", "", tag)
-	updateOperation.RequestBody = handlerutil.WorkspaceMultipartRequestBody("JSON encoded project workspace manifest")
-	handlerutil.RegisterSecured(api, updateOperation, authz.PermProjectsUpdate, h.UpdateProjectWorkspace)
 }

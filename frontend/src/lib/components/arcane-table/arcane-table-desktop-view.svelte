@@ -105,7 +105,8 @@
 		getTableDisplayEntries(flatRows, rowIndex, groupedRows, groupCollapsedState, hasExpand ? expandedRows : undefined)
 	);
 	const shouldVirtualize = $derived(entries.length > VIRTUALIZE_THRESHOLD);
-	// Natural column widths (% of the table) measured from an auto-layout pass, then locked for table-fixed.
+	// Natural column widths (px) measured from an auto-layout pass, then locked for table-fixed. Pixels rather than
+	// percentages keep an overflowing table from squashing every column; the table scrolls horizontally instead.
 	let lockedColumns = $state<{ key: string; widths: number[] } | null>(null);
 	const columnKey = $derived(
 		table
@@ -114,6 +115,30 @@
 			.join('|') + `:${hasExpand}:${wrapText}`
 	);
 	const columnWidths = $derived(shouldVirtualize && lockedColumns?.key === columnKey ? lockedColumns.widths : null);
+	const lockedTableWidth = $derived(columnWidths?.reduce((total, width) => total + width, 0));
+	// Per-column cell flags, computed once per layout change instead of per cell on every row render.
+	const cellPropsByColumn = $derived(
+		new Map(
+			table.getVisibleLeafColumns().map((column, index) => {
+				const meta = column.columnDef.meta;
+				const isControl = column.id === 'select' || column.id === 'actions';
+				return [
+					column.id,
+					{
+						pinned: column.id === 'actions',
+						variant: column.id === 'select' ? ('checkbox' as const) : ('default' as const),
+						firstData: column.id !== 'select' && index === (selectionDisabled ? 0 : 1),
+						shrink: column.id === 'actions' || meta?.width === 'min',
+						grow: meta?.width === 'max',
+						align: meta?.align,
+						clip: !wrapText && (!!meta?.truncate || (!!columnWidths && !isControl)),
+						wrap: wrapText && !isControl,
+						width: typeof meta?.width === 'number' ? meta.width : undefined
+					}
+				];
+			})
+		)
+	);
 	const getItemKey = $derived.by(() => {
 		const displayed = entries;
 		return (index: number) => displayed[index]?.key ?? index;
@@ -155,11 +180,10 @@
 		const measureColumns = () => {
 			if (columnWidths || !body.querySelector('tr[data-index]')) return;
 			const cells = tableNode.tHead?.rows[0]?.cells;
-			const tableWidth = tableNode.getBoundingClientRect().width;
-			if (!cells || !tableWidth) return;
+			if (!cells?.length) return;
 			lockedColumns = {
 				key: layoutKey,
-				widths: Array.from(cells, (cell) => (cell.getBoundingClientRect().width / tableWidth) * 100)
+				widths: Array.from(cells, (cell) => cell.getBoundingClientRect().width)
 			};
 		};
 		const fontsChanged = () => {
@@ -210,13 +234,9 @@
 
 {#snippet cellContent(cell: ArcaneCell<TData>)}
 	{#if cell.column.id === 'actions'}
-		<!-- Pinned row actions: a floating chip at the row's end, always present in its own gutter. -->
-		<div class="flex items-center justify-end py-1 pr-3 pl-2" data-row-select-ignore>
-			<div
-				class="flex items-center gap-0.5 rounded-full border border-border/50 bg-card/90 p-0.5 shadow-sm transition-all duration-150 group-hover/row:border-border group-hover/row:shadow-md"
-			>
-				<FlexRender {cell} />
-			</div>
+		<!-- Pinned row actions at the row's end, always present in their own gutter. -->
+		<div class="flex items-center justify-end gap-0.5 py-1 pr-3 pl-2" data-row-select-ignore>
+			<FlexRender {cell} />
 		</div>
 	{:else}
 		<FlexRender {cell} />
@@ -239,7 +259,7 @@
 		data-expanded={isExpanded ? true : undefined}
 		onclick={(event) => handleRowClick(event, rowId)}
 		onmousedown={handleRowMouseDown}
-		class={cn('isolate', hasExpand && 'cursor-pointer')}
+		class={hasExpand ? 'cursor-pointer' : undefined}
 	>
 		{#if hasExpand}
 			<Table.Cell variant="expander" data-row-select-ignore>
@@ -258,28 +278,24 @@
 				</button>
 			</Table.Cell>
 		{/if}
-		{#each row.getVisibleCells() as cell, cellIndex (cell.id)}
-			{@const isFirstDataCell = !selectionDisabled ? cellIndex === 1 : cellIndex === 0}
-			{@const meta = cell.column.columnDef.meta}
-			{@const clip =
-				!wrapText && (meta?.truncate || (!!columnWidths && cell.column.id !== 'select' && cell.column.id !== 'actions'))}
+		{#each row.getVisibleCells() as cell (cell.id)}
+			{@const props = cellPropsByColumn.get(cell.column.id)}
 			<Table.Cell
-				pinned={cell.column.id === 'actions'}
-				variant={cell.column.id === 'select' ? 'checkbox' : 'default'}
-				indent={isGroupedRow && isFirstDataCell && cell.column.id !== 'select'}
-				style={typeof meta?.width === 'number' ? `--col-width: ${meta.width}px` : undefined}
+				pinned={props?.pinned}
+				variant={props?.variant}
+				indent={isGroupedRow && !!props?.firstData}
+				style={props?.width !== undefined ? `--col-width: ${props.width}px` : undefined}
 				class={cn(
-					cell.column.id === 'actions' && 'w-0',
-					meta?.width === 'min' && 'w-0',
-					meta?.width === 'max' && 'w-full',
-					meta?.align === 'center' && 'text-center',
-					meta?.align === 'right' && 'text-right',
-					clip && 'max-w-0',
-					wrapText && cell.column.id !== 'select' && cell.column.id !== 'actions' && 'break-words whitespace-normal',
-					typeof meta?.width === 'number' && 'w-(--col-width)'
+					props?.shrink && 'w-0',
+					props?.grow && 'w-full',
+					props?.align === 'center' && 'text-center',
+					props?.align === 'right' && 'text-right',
+					props?.clip && 'max-w-0',
+					props?.wrap && 'break-words whitespace-normal',
+					props?.width !== undefined && 'w-(--col-width)'
 				)}
 			>
-				{#if clip}
+				{#if props?.clip}
 					<span class="block min-w-0 truncate">{@render cellContent(cell)}</span>
 				{:else}
 					{@render cellContent(cell)}
@@ -328,14 +344,14 @@
 				{#if hasExpand}
 					<Table.Head
 						variant="expander"
-						style={columnWidths ? `--col-width: ${columnWidths[0]}%` : undefined}
+						style={columnWidths ? `--col-width: ${columnWidths[0]}px` : undefined}
 						class={columnWidths ? 'w-(--col-width)' : undefined}
 					></Table.Head>
 				{/if}
 				{#each headerGroup.headers as header, i (header.id)}
 					{@const meta = header.column.columnDef.meta}
 					{@const pxWidth = typeof meta?.width === 'number' ? `${meta.width}px` : undefined}
-					{@const colWidth = columnWidths ? `${columnWidths[i + (hasExpand ? 1 : 0)]}%` : pxWidth}
+					{@const colWidth = columnWidths ? `${columnWidths[i + (hasExpand ? 1 : 0)]}px` : pxWidth}
 					<Table.Head
 						colspan={header.colSpan}
 						pinned={header.column.id === 'actions'}
@@ -437,7 +453,11 @@
 			'[&_td]:bg-transparent! [&_thead]:bg-transparent! [&_tr]:border-border/40! [&_tr]:bg-transparent! [&_tr]:hover:bg-transparent! [&_tr:hover_td]:bg-transparent! [&_tr[data-state=selected]]:bg-transparent! [&_tr[data-state=selected]_td]:bg-transparent!'
 	)}
 >
-	<Table.Root bind:ref={tableElement} class={columnWidths ? 'table-fixed' : undefined}>
+	<Table.Root
+		bind:ref={tableElement}
+		class={cn(columnWidths && 'table-fixed', lockedTableWidth && 'min-w-(--table-width)')}
+		style={lockedTableWidth ? `--table-width: ${lockedTableWidth}px` : undefined}
+	>
 		{@render tableHeader()}
 		<Table.Body bind:ref={bodyElement}>
 			{#if loading && entries.length === 0}

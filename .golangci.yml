@@ -42,6 +42,7 @@ linters:
     - depguard
     - errcheck
     - errorlint
+    - exhaustruct_v5
     - forbidigo
     - gocognit
     - gocritic
@@ -83,6 +84,9 @@ linters:
             - pkg: 'gopkg.in/yaml.v3'
               desc: Use go.yaml.in/yaml/v4 instead.
 
+    exhaustruct_v5:
+      explicit-mode: true
+
     forbidigo:
       analyze-types: true
       forbid:
@@ -104,7 +108,7 @@ linters:
         - style
 
     gocognit:
-      min-complexity: 40
+      min-complexity: 45
 
     importas:
       alias:

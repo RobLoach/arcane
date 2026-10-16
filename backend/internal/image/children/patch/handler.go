@@ -12,6 +12,7 @@ import (
 	"github.com/getarcaneapp/arcane/backend/v2/internal/common"
 	"github.com/getarcaneapp/arcane/backend/v2/pkg/utils"
 	"github.com/getarcaneapp/arcane/backend/v2/pkg/utils/handlerutil"
+	"github.com/getarcaneapp/arcane/backend/v2/pkg/utils/httpx"
 )
 
 // ImagePatchHandler provides Huma-based image patching endpoints.
@@ -55,16 +56,11 @@ func (h *ImagePatchHandler) PatchImage(ctx context.Context, input *PatchImageInp
 	runtimeCtx := utils.ActivityRuntimeContext(ctx, h.appCtx)
 	record, err := h.imagePatchService.PatchImage(runtimeCtx, input.EnvironmentID, input.ImageID, input.Body, *user)
 	if err != nil {
-		switch {
-		case errors.Is(err, common.ErrFeatureDisabled):
+		if errors.Is(err, common.ErrFeatureDisabled) {
 			return nil, handlerutil.FeatureDisabledError(features.VulnerabilityManagement)
-		case errors.Is(err, common.ErrBadRequest):
-			return nil, huma.Error400BadRequest(err.Error())
-		case errors.Is(err, common.ErrNotFound):
-			return nil, huma.Error404NotFound(err.Error())
-		default:
-			return nil, huma.Error500InternalServerError("Failed to patch image: " + err.Error())
 		}
+		apiErr := common.ToAPIError(err)
+		return nil, huma.NewError(apiErr.HTTPStatus(), apiErr.Message)
 	}
 
 	return &handlerutil.Out[imagepatch.PatchRecord]{
@@ -78,6 +74,13 @@ func (h *ImagePatchHandler) PatchImage(ctx context.Context, input *PatchImageInp
 // ListPatchTargets returns scanned images with fixable counts and latest patch runs.
 func (h *ImagePatchHandler) ListPatchTargets(ctx context.Context, input *ListPatchTargetsInput) (*handlerutil.Page[imagepatch.PatchTarget], error) {
 	params := handlerutil.PaginationParams(input.Start, input.Limit, input.Sort, input.Order, input.Search)
+	if _, ok := httpx.EnvironmentScopeFromContext(ctx); ok {
+		body, err := h.imagePatchService.AggregatePatchTargets(ctx, params)
+		if err != nil {
+			return nil, huma.Error500InternalServerError("Failed to list image patch targets: " + err.Error())
+		}
+		return &handlerutil.Page[imagepatch.PatchTarget]{Body: body}, nil
+	}
 
 	targets, paginationResp, err := h.imagePatchService.ListPatchTargets(ctx, input.EnvironmentID, params)
 	if err != nil {

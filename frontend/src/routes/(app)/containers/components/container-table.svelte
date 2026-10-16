@@ -163,11 +163,8 @@
 	async function fetchContainers(request: ContainerListRequestOptions): Promise<ContainerPage> {
 		return onRefreshData
 			? onRefreshData(request)
-			: fetchAcrossEnvironments(
-					environmentStore.shown,
-					request,
-					(id, request, config) => containerService.getContainersForEnvironment(id, request, config),
-					containerSortValue
+			: fetchAcrossEnvironments(environmentStore.shown, request, (id, request, config) =>
+					containerService.getContainersForEnvironment(id, request, config)
 				);
 	}
 
@@ -720,9 +717,9 @@
 			{#if !status && item.state !== 'running' && hasPermission('containers:start', item.environmentId)}
 				<ArcaneButton
 					action="base"
-					tone="outline"
+					tone="ghost"
 					size="sm"
-					class="size-7 border-transparent bg-transparent p-0 text-success shadow-none hover:bg-success/10 hover:text-success"
+					class="size-7 p-0 text-success! hover:bg-success/10 hover:text-success"
 					onclick={() => performContainerAction('start', item.id, item.environmentId)}
 					disabled={!resourcesCurrent || isAnyLoading}
 					icon={StartIcon}
@@ -731,9 +728,9 @@
 			{:else if !status && item.state === 'running' && hasPermission('containers:stop', item.environmentId)}
 				<ArcaneButton
 					action="base"
-					tone="outline"
+					tone="ghost"
 					size="sm"
-					class="size-7 border-transparent bg-transparent p-0 text-destructive shadow-none hover:bg-destructive/10 hover:text-destructive"
+					class="size-7 p-0 text-destructive! hover:bg-destructive/10 hover:text-destructive"
 					onclick={() => performContainerAction('stop', item.id, item.environmentId)}
 					disabled={!resourcesCurrent || isAnyLoading}
 					title={m.common_stop()}

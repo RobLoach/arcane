@@ -27,12 +27,15 @@ type Module struct {
 
 // New wires container routes around an existing service and registers per-container resource metrics once.
 func New(service *ContainerService, dockerService *docker.DockerClientService, settingsService *settings.SettingsService, activityService *activity.ActivityService) *Module {
-	if service != nil && service.stats != nil && service.dockerService != nil {
-		if err := service.stats.ObserveResources(otel.Meter(tracing.InstrumentationName), service.dockerService.ListContainers); err != nil {
-			otel.Handle(err)
-		}
+	if err := service.stats.ObserveResources(otel.Meter(tracing.InstrumentationName), service.dockerService.ListContainers); err != nil {
+		otel.Handle(err)
 	}
-	return &Module{service: service, dockerService: dockerService, settingsService: settingsService, activityService: activityService}
+	return &Module{
+		service:         service,
+		dockerService:   dockerService,
+		settingsService: settingsService,
+		activityService: activityService,
+	}
 }
 
 // Service exposes the container service to collaborators.
@@ -77,6 +80,7 @@ func RegisterContainers(
 		Description: "Paginated list of containers",
 		Tags:        []string{"Containers"},
 		Security:    handlerutil.DefaultOperationSecurity(),
+		Metadata:    map[string]any{authz.MetaEnvironmentAggregate: true},
 	}, authz.PermContainersList, h.ListContainers)
 
 	middleware.RegisterWithPermission(api, huma.Operation{
